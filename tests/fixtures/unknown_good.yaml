@@ -1,0 +1,17 @@
+starting_credits: 300
+cargo_capacity: 100
+goods:
+  - id: nutrient_gel
+    name: Nutrient gel
+    weight: 1
+stations:
+  - id: alpha
+    name: Alpha
+    market:
+      - good_id: missing_good
+        stock: 4
+        player_buy_price: 10
+        player_sell_price: 8
+  - id: beta
+    name: Beta
+    market: []

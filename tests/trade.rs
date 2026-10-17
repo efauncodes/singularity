@@ -54,7 +54,7 @@ fn successful_purchase_updates_wallet_station_stock_and_cargo() {
 
     let state = app.world().get::<PlayerState>(player).unwrap();
     let station = app.world().get::<StationState>(alpha).unwrap();
-    assert_eq!(state.credits, 0);
+    assert_eq!(state.credits, 100);
     assert_eq!(state.cargo.get("reactor_cells"), Some(&10));
     assert_eq!(
         state.cargo_weight(&load_game_config("assets/data/game.yaml").unwrap().goods),
@@ -88,7 +88,7 @@ fn insufficient_credits_leave_transaction_state_unchanged() {
     let before_player = app.world().get::<PlayerState>(player).unwrap().clone();
     let before_station = app.world().get::<StationState>(beta).unwrap().clone();
 
-    send_trade(&mut app, beta, "reactor_cells", 7, TradeDirection::Buy);
+    send_trade(&mut app, beta, "reactor_cells", 8, TradeDirection::Buy);
 
     assert_eq!(
         app.world().get::<PlayerState>(player).unwrap(),
@@ -181,6 +181,27 @@ fn cargo_capacity_counts_different_goods_together() {
     assert_eq!(state.cargo.get("reactor_cells"), Some(&9));
     assert_eq!(state.cargo.get("refined_alloy"), None);
     assert_eq!(state.cargo_weight(&config.goods), 90);
+    assert_eq!(
+        app.world().resource::<TradeResult>().0,
+        "That purchase exceeds your cargo capacity."
+    );
+}
+
+#[test]
+fn starting_balance_allows_a_direct_cargo_limit_rejection() {
+    let (mut app, player, alpha, _, config) = setup_app(300);
+    send_trade(&mut app, alpha, "reactor_cells", 10, TradeDirection::Buy);
+    let player_after_fill = app.world().get::<PlayerState>(player).unwrap().clone();
+    let station_after_fill = app.world().get::<StationState>(alpha).unwrap().clone();
+
+    send_trade(&mut app, alpha, "nutrient_gel", 1, TradeDirection::Buy);
+
+    let final_player = app.world().get::<PlayerState>(player).unwrap();
+    let final_station = app.world().get::<StationState>(alpha).unwrap();
+    assert_eq!(final_player, &player_after_fill);
+    assert_eq!(final_station.stock, station_after_fill.stock);
+    assert_eq!(final_player.credits, 100);
+    assert_eq!(final_player.cargo_weight(&config.goods), 100);
     assert_eq!(
         app.world().resource::<TradeResult>().0,
         "That purchase exceeds your cargo capacity."

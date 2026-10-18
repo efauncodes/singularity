@@ -15,6 +15,7 @@ goods:
 stations:
   - id: mars_exchange
     name: Mars Exchange
+    map_position: { x: 0.2, y: 0.28 }
     market:
       - good_id: nutrient_gel
         stock: 100
@@ -30,6 +31,7 @@ stations:
         player_sell_price: 16
   - id: europa_exchange
     name: Europa Exchange
+    map_position: { x: 0.78, y: 0.2 }
     market:
       - good_id: nutrient_gel
         stock: 40
@@ -45,6 +47,7 @@ stations:
         player_sell_price: 35
   - id: ceres_exchange
     name: Ceres Exchange
+    map_position: { x: 0.56, y: 0.76 }
     market:
       - good_id: nutrient_gel
         stock: 60

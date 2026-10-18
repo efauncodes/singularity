@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy::ui::InteractionDisabled;
 use bevy::ui_widgets::Activate;
 
+use super::super::star_map::SelectedSystem;
 use super::super::trade_screen::{set_button_enabled, spawn_button, text_font};
 use crate::ship::{ArrivalNotice, Ship, ShipLocation, TravelRequest, TravelResult};
 use crate::simulation::{SimulationClock, SimulationSet, TimeControl};
@@ -29,7 +30,7 @@ enum NavigationText {
 #[derive(Component)]
 enum NavigationAction {
     Time(TimeControl),
-    Travel(Entity),
+    TravelSelected,
 }
 
 pub(crate) fn spawn_navigation(commands: &mut Commands) -> Entity {
@@ -78,11 +79,11 @@ pub(crate) fn spawn_navigation(commands: &mut Commands) -> Entity {
     root
 }
 
-pub(crate) fn spawn_travel_button(commands: &mut Commands, station: Entity) -> Entity {
-    let button = spawn_button(commands, "Send ship here");
+pub(crate) fn spawn_travel_button(commands: &mut Commands) -> Entity {
+    let button = spawn_button(commands, "Send ship to selected system");
     commands
         .entity(button)
-        .insert(NavigationAction::Travel(station))
+        .insert(NavigationAction::TravelSelected)
         .observe(queue_navigation);
     button
 }
@@ -92,6 +93,7 @@ fn queue_navigation(
     actions: Query<&NavigationAction, Without<InteractionDisabled>>,
     mut controls: MessageWriter<TimeControl>,
     mut requests: MessageWriter<TravelRequest>,
+    selected: Res<SelectedSystem>,
 ) {
     let Ok(action) = actions.get(activate.entity) else {
         return;
@@ -100,9 +102,9 @@ fn queue_navigation(
         NavigationAction::Time(control) => {
             controls.write(*control);
         }
-        NavigationAction::Travel(destination) => {
+        NavigationAction::TravelSelected => {
             requests.write(TravelRequest {
-                destination: *destination,
+                destination: selected.0,
             });
         }
     }
@@ -160,6 +162,7 @@ fn refresh_navigation_buttons(
     mut commands: Commands,
     clock: Res<SimulationClock>,
     ship: Single<&ShipLocation, With<Ship>>,
+    selected: Res<SelectedSystem>,
     mut buttons: Query<(
         Entity,
         &NavigationAction,
@@ -171,8 +174,8 @@ fn refresh_navigation_buttons(
         let enabled = match action {
             NavigationAction::Time(TimeControl::Start) => clock.is_paused(),
             NavigationAction::Time(TimeControl::Pause) => !clock.is_paused(),
-            NavigationAction::Travel(target) => {
-                matches!(**ship, ShipLocation::Docked { station } if station != *target)
+            NavigationAction::TravelSelected => {
+                matches!(**ship, ShipLocation::Docked { station } if station != selected.0)
             }
         };
         set_button_enabled(&mut commands, entity, disabled, enabled, &mut color);

@@ -30,19 +30,12 @@ struct TradeAction {
 }
 
 #[derive(Component)]
-struct MarketLine {
-    station: Entity,
-    good_id: String,
+enum TradeScreenText {
+    MarketLine { station: Entity, good_id: String },
+    Wallet,
+    Cargo,
+    Status,
 }
-
-#[derive(Component)]
-struct WalletText;
-
-#[derive(Component)]
-struct CargoText;
-
-#[derive(Component)]
-struct StatusText;
 
 pub fn setup_trade_ui(
     mut commands: Commands,
@@ -76,7 +69,7 @@ pub fn setup_trade_ui(
             Text::new(""),
             text_font(22.0),
             TextColor(Color::srgb(0.95, 0.85, 0.48)),
-            WalletText,
+            TradeScreenText::Wallet,
         ))
         .id();
     let cargo = commands
@@ -84,7 +77,7 @@ pub fn setup_trade_ui(
             Text::new(""),
             text_font(18.0),
             TextColor(Color::srgb(0.7, 0.86, 0.96)),
-            CargoText,
+            TradeScreenText::Cargo,
         ))
         .id();
     let status = commands
@@ -92,7 +85,7 @@ pub fn setup_trade_ui(
             Text::new("Enter a quantity and trade between the two exchanges."),
             text_font(17.0),
             TextColor(Color::srgb(0.74, 0.85, 0.75)),
-            StatusText,
+            TradeScreenText::Status,
         ))
         .id();
 
@@ -179,7 +172,7 @@ pub fn setup_trade_ui(
                     Text::new(""),
                     text_font(16.0),
                     TextColor(Color::srgb(0.87, 0.9, 0.92)),
-                    MarketLine {
+                    TradeScreenText::MarketLine {
                         station: station_entity,
                         good_id: good.id.clone(),
                     },
@@ -284,13 +277,7 @@ fn refresh_trade_screen(
     config: Res<GameConfig>,
     player_query: Query<&PlayerState, With<Player>>,
     stations: Query<&StationState>,
-    mut texts: Query<(
-        &mut Text,
-        Option<&MarketLine>,
-        Option<&WalletText>,
-        Option<&CargoText>,
-        Option<&StatusText>,
-    )>,
+    mut texts: Query<(&mut Text, &TradeScreenText)>,
     result: Res<TradeResult>,
 ) {
     let Some(player) = player_query.iter().next() else {
@@ -303,37 +290,25 @@ fn refresh_trade_screen(
         player.cargo_capacity
     );
 
-    for (mut text, market_line, wallet_marker, cargo_marker, status_marker) in &mut texts {
-        if wallet_marker.is_some() {
-            text.0.clone_from(&wallet);
-            continue;
+    for (mut text, marker) in &mut texts {
+        match marker {
+            TradeScreenText::Wallet => text.0.clone_from(&wallet),
+            TradeScreenText::Cargo => text.0.clone_from(&cargo),
+            TradeScreenText::Status => text.0.clone_from(&result.0),
+            TradeScreenText::MarketLine { station, good_id } => {
+                let Ok(station) = stations.get(*station) else {
+                    continue;
+                };
+                let Some(good) = config.goods.iter().find(|good| good.id == *good_id) else {
+                    continue;
+                };
+                let stock = station.stock.get(&good.id).copied().unwrap_or_default();
+                text.0 = format!(
+                    "{} · weight {} each · stock {}",
+                    good.name, good.weight, stock
+                );
+            }
         }
-        if cargo_marker.is_some() {
-            text.0.clone_from(&cargo);
-            continue;
-        }
-        if status_marker.is_some() {
-            text.0.clone_from(&result.0);
-            continue;
-        }
-        let Some(market_line) = market_line else {
-            continue;
-        };
-        let Ok(station) = stations.get(market_line.station) else {
-            continue;
-        };
-        let Some(good) = config
-            .goods
-            .iter()
-            .find(|good| good.id == market_line.good_id)
-        else {
-            continue;
-        };
-        let stock = station.stock.get(&good.id).copied().unwrap_or_default();
-        text.0 = format!(
-            "{} · weight {} each · stock {}",
-            good.name, good.weight, stock
-        );
     }
 }
 

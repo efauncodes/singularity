@@ -18,6 +18,19 @@ A space-trading economic simulation about merchants pursuing personal singularit
   and focused helper functions.
 - Keep changes focused on the requested task.
 
+## Rust / Clippy
+
+- Keep every function and method to at most seven parameters. When one needs eight or more, group related parameters into a focused struct. Do not raise Clippy's `too-many-arguments-threshold` to bypass this limit.
+- When a nested `if` has no `else` branch and its body should run only when both conditions are true, combine the conditions with `&&`.
+- When a type expression is difficult to read or the same complex type appears in multiple places, define a named type alias for it. Do not add an alias solely to silence Clippy.
+- When a generic function accepts an argument by value and passing it directly preserves the required ownership and borrowing, pass it without an unnecessary `&`.
+- When a loop repeatedly matches a value and exits when the pattern does not match, use `while let` for that loop.
+- Do not give every variant in an enum the same redundant suffix. For example, rename `DamageMultiplier` and `SpeedMultiplier` to remove the shared `Multiplier` suffix while preserving each variant's meaning.
+- When all fields are known at construction time, initialize them in a struct literal and use `..Default::default()` for remaining fields. Do not create a mutable default value and then assign those fields one by one.
+- Do not call `drop(value)` on a type without a `Drop` implementation to end its lifetime. Use a narrower lexical scope or restructure the borrow instead.
+- When a function only borrows a filesystem path, take `&Path` rather than `&PathBuf`. Use `PathBuf` when the function needs to own the path.
+- Do not suppress a Clippy lint just to make CI pass. If a lint is inapplicable, use the narrowest possible suppression and include a reason.
+
 ## Architecture
 
 - Organize code and tests by domain, never by issue number.

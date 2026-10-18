@@ -30,7 +30,6 @@ A space-trading economic simulation about merchants pursuing personal singularit
 - Do not call `drop(value)` on a type without a `Drop` implementation to end its lifetime. Use a narrower lexical scope or restructure the borrow instead.
 - When a function only borrows a filesystem path, take `&Path` rather than `&PathBuf`. Use `PathBuf` when the function needs to own the path.
 - Do not suppress a Clippy lint just to make CI pass. If a lint is inapplicable, use the narrowest possible suppression and include a reason.
-
 - Remove identity transformations from iterator chains. Do not map an item to the same item or tuple it already is.
 - Give child modules names that differ from their parent module. Do not create a nested module with the same name as its containing module, such as `projection::projection`.
 - When changing a function signature, update every call site to pass the required arguments with the expected types. Run `cargo check --locked` to catch stale calls.

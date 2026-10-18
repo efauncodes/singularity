@@ -1,3 +1,3 @@
 mod plugin;
 
-pub use plugin::GamePlugin;
+pub use plugin::{GameCorePlugin, GamePlugin};

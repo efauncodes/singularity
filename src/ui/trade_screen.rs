@@ -5,17 +5,24 @@ use bevy::input_focus::{
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::text::{EditableText, TextCursorStyle};
+use bevy::ui::InteractionDisabled;
 use bevy::ui_widgets::{Activate, Button};
 
+use super::navigation::{NavigationUiPlugin, spawn_navigation, spawn_travel_button};
 use crate::content::GameConfig;
+use crate::ship::{Ship, ShipLocation};
+use crate::simulation::SimulationSet;
 use crate::trade::{Player, PlayerState, StationState, TradeDirection, TradeRequest, TradeResult};
 
 pub struct TradeUiPlugin;
 
 impl Plugin for TradeUiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(TabNavigationPlugin)
-            .add_systems(Update, (refresh_trade_screen,));
+        app.add_plugins((TabNavigationPlugin, NavigationUiPlugin))
+            .add_systems(
+                Update,
+                (refresh_trade_screen, refresh_trade_buttons).in_set(SimulationSet::Presentation),
+            );
     }
 }
 
@@ -64,6 +71,7 @@ pub fn setup_trade_ui(
         30.0,
         Color::srgb(0.7, 0.9, 1.0),
     );
+    let navigation = spawn_navigation(&mut commands);
     let wallet = commands
         .spawn((
             Text::new(""),
@@ -82,7 +90,7 @@ pub fn setup_trade_ui(
         .id();
     let status = commands
         .spawn((
-            Text::new("Enter a quantity and trade between the two exchanges."),
+            Text::new("Enter a quantity to trade at your docked station."),
             text_font(17.0),
             TextColor(Color::srgb(0.74, 0.85, 0.75)),
             TradeScreenText::Status,
@@ -134,16 +142,25 @@ pub fn setup_trade_ui(
         .spawn((Node {
             width: percent(100),
             column_gap: px(20),
+            row_gap: px(20),
+            flex_wrap: FlexWrap::Wrap,
             align_items: AlignItems::Start,
             ..default()
         },))
         .id();
 
-    for (station_entity, station) in &stations {
+    for station_config in &config.stations {
+        let Some((station_entity, station)) = stations
+            .iter()
+            .find(|(_, station)| station.id == station_config.id)
+        else {
+            continue;
+        };
         let station_panel = commands
             .spawn((
                 Node {
-                    width: percent(50),
+                    flex_basis: px(320),
+                    flex_grow: 1.0,
                     padding: px(18).all(),
                     row_gap: px(10),
                     flex_direction: FlexDirection::Column,
@@ -159,6 +176,8 @@ pub fn setup_trade_ui(
             Color::srgb(0.42, 0.82, 1.0),
         );
         commands.entity(station_panel).add_child(station_title);
+        let travel_button = spawn_travel_button(&mut commands, station_entity);
+        commands.entity(station_panel).add_child(travel_button);
 
         for good in &config.goods {
             let Some(buy_price) = station.player_buy_prices.get(&good.id) else {
@@ -210,9 +229,15 @@ pub fn setup_trade_ui(
         commands.entity(stations_row).add_child(station_panel);
     }
 
-    commands
-        .entity(root)
-        .add_children(&[title, wallet, cargo, status, input_row, stations_row]);
+    commands.entity(root).add_children(&[
+        title,
+        navigation,
+        wallet,
+        cargo,
+        status,
+        input_row,
+        stations_row,
+    ]);
 }
 
 fn spawn_trade_button(
@@ -222,6 +247,19 @@ fn spawn_trade_button(
     direction: TradeDirection,
     label: &str,
 ) -> Entity {
+    let button = spawn_button(commands, label);
+    commands
+        .entity(button)
+        .insert(TradeAction {
+            station,
+            good_id: good_id.to_string(),
+            direction,
+        })
+        .observe(queue_trade)
+        .id()
+}
+
+pub(super) fn spawn_button(commands: &mut Commands, label: &str) -> Entity {
     commands
         .spawn((
             Button,
@@ -235,20 +273,14 @@ fn spawn_trade_button(
                 ..default()
             },
             BackgroundColor(Color::srgb(0.12, 0.24, 0.31)),
-            TradeAction {
-                station,
-                good_id: good_id.to_string(),
-                direction,
-            },
             children![(Text::new(label), text_font(15.0), TextColor(Color::WHITE),)],
         ))
-        .observe(queue_trade)
         .id()
 }
 
 fn queue_trade(
     activate: On<Activate>,
-    actions: Query<&TradeAction>,
+    actions: Query<&TradeAction, Without<InteractionDisabled>>,
     input: Single<&EditableText, With<QuantityInput>>,
     mut requests: MessageWriter<TradeRequest>,
     mut result: ResMut<TradeResult>,
@@ -318,9 +350,49 @@ fn spawn_text(commands: &mut Commands, value: &str, size: f32, color: Color) -> 
         .id()
 }
 
-fn text_font(size: f32) -> TextFont {
+pub(super) fn text_font(size: f32) -> TextFont {
     TextFont {
         font_size: FontSize::Px(size),
         ..default()
     }
+}
+
+fn refresh_trade_buttons(
+    mut commands: Commands,
+    ship: Single<&ShipLocation, With<Ship>>,
+    mut buttons: Query<(
+        Entity,
+        &TradeAction,
+        Has<InteractionDisabled>,
+        &mut BackgroundColor,
+    )>,
+) {
+    for (entity, action, disabled, mut color) in &mut buttons {
+        set_button_enabled(
+            &mut commands,
+            entity,
+            disabled,
+            ship.is_docked_at(action.station),
+            &mut color,
+        );
+    }
+}
+
+pub(super) fn set_button_enabled(
+    commands: &mut Commands,
+    entity: Entity,
+    disabled: bool,
+    enabled: bool,
+    color: &mut BackgroundColor,
+) {
+    if enabled && disabled {
+        commands.entity(entity).remove::<InteractionDisabled>();
+    }
+    if !enabled && !disabled {
+        commands.entity(entity).insert(InteractionDisabled);
+    }
+    color.0 = match enabled {
+        true => Color::srgb(0.12, 0.24, 0.31),
+        false => Color::srgb(0.09, 0.11, 0.13),
+    };
 }

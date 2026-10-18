@@ -379,9 +379,14 @@ fn refresh_trade_buttons(
     mut commands: Commands,
     ship: Single<&ShipLocation, With<Ship>>,
     selected: Res<SelectedSystem>,
-    mut buttons: Query<(Entity, Has<InteractionDisabled>, &mut BackgroundColor)>,
+    mut buttons: Query<(
+        Entity,
+        &TradeAction,
+        Has<InteractionDisabled>,
+        &mut BackgroundColor,
+    )>,
 ) {
-    for (entity, disabled, mut color) in &mut buttons {
+    for (entity, _, disabled, mut color) in &mut buttons {
         set_button_enabled(
             &mut commands,
             entity,
@@ -398,6 +403,10 @@ fn refresh_trade_button_labels(
     buttons: Query<(&Children, &TradeAction)>,
     mut texts: Query<&mut Text>,
 ) {
+    if !selected.is_changed() {
+        return;
+    }
+
     let Ok(station) = stations.get(selected.0) else {
         return;
     };

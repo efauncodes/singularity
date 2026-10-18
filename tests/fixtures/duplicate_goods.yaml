@@ -16,7 +16,9 @@ goods:
 stations:
   - id: alpha
     name: Alpha
+    map_position: { x: 0.2, y: 0.5 }
     market: []
   - id: beta
     name: Beta
+    map_position: { x: 0.8, y: 0.5 }
     market: []

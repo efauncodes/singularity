@@ -12,6 +12,10 @@ fn production_market_content_loads_with_expected_starting_values() {
     assert_eq!(config.starting_station_id, "mars_exchange");
     assert_eq!(config.real_millis_per_unit, 500);
     assert_eq!(config.routes.len(), 3);
+    for station in &config.stations {
+        assert!((0.0..=1.0).contains(&station.map_position.x));
+        assert!((0.0..=1.0).contains(&station.map_position.y));
+    }
     for from in &config.stations {
         for to in &config.stations {
             if from.id == to.id {
@@ -24,6 +28,25 @@ fn production_market_content_loads_with_expected_starting_values() {
             );
         }
     }
+}
+
+#[test]
+fn invalid_map_position_reports_source_station_and_field() {
+    let production = include_str!("../assets/data/game.yaml");
+    for (before, after, expected) in [
+        ("x: 0.2, y: 0.28", "x: 1.2, y: 0.28", "map_position.x"),
+        ("x: 0.2, y: 0.28", "x: 0.2, y: -0.1", "map_position.y"),
+    ] {
+        let source = production.replacen(before, after, 1);
+        let error = parse_game_config(&source, "game.yaml").unwrap_err();
+        assert!(error.contains("game.yaml"), "{error}");
+        assert!(error.contains("mars_exchange"), "{error}");
+        assert!(error.contains(expected), "{error}");
+    }
+    let source = production.replacen("    map_position: { x: 0.2, y: 0.28 }\n", "", 1);
+    let error = parse_game_config(&source, "game.yaml").unwrap_err();
+    assert!(error.contains("game.yaml"), "{error}");
+    assert!(error.contains("map_position"), "{error}");
 }
 
 #[test]

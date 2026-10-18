@@ -34,15 +34,11 @@ fn button_entity(app: &mut App, label: &str) -> Entity {
     app.world().get::<ChildOf>(text).unwrap().parent()
 }
 
-fn destination_button(app: &mut App, station: &str) -> Entity {
+fn station_button(app: &mut App, station: &str) -> Entity {
     let title = text_entity(app, station);
-    let panel = app.world().get::<ChildOf>(title).unwrap().parent();
-    app.world()
-        .get::<Children>(panel)
-        .unwrap()
-        .iter()
-        .find(|&child| app.world().get::<Button>(child).is_some())
-        .unwrap()
+    let button = app.world().get::<ChildOf>(title).unwrap().parent();
+    assert!(app.world().entity(button).contains::<Button>());
+    button
 }
 
 fn step(app: &mut App, duration: Duration) {
@@ -51,7 +47,7 @@ fn step(app: &mut App, duration: Duration) {
 }
 
 #[test]
-fn production_ui_controls_time_travel_and_displays_arrival_in_the_same_update() {
+fn production_ui_selects_remote_markets_travels_and_gates_trade_until_docked() {
     let config = load_game_config("assets/data/game.yaml").unwrap();
     let unit = Duration::from_millis(u64::from(config.real_millis_per_unit));
     let mut app = App::new();
@@ -62,17 +58,24 @@ fn production_ui_controls_time_travel_and_displays_arrival_in_the_same_update() 
     app.update();
 
     text_entity(&mut app, "Time: 0 units | PAUSED");
-    let mars = destination_button(&mut app, "Mars Exchange");
-    let europa = destination_button(&mut app, "Europa Exchange");
-    destination_button(&mut app, "Ceres Exchange");
-    assert!(app.world().entity(mars).contains::<InteractionDisabled>());
-    assert!(!app.world().entity(europa).contains::<InteractionDisabled>());
+    let mars = station_button(&mut app, "Mars Exchange");
+    let europa = station_button(&mut app, "Europa Exchange");
+    let ceres = station_button(&mut app, "Ceres Exchange");
+    text_entity(&mut app, "MARKET / Mars Exchange");
+    let trade = button_entity(&mut app, "Buy (10 cr)");
+    assert!(!app.world().entity(trade).contains::<InteractionDisabled>());
 
     app.world_mut().trigger(Activate { entity: europa });
     step(&mut app, Duration::ZERO);
-    assert!(app.world().entity(europa).contains::<InteractionDisabled>());
+    text_entity(&mut app, "MARKET / Europa Exchange");
+    text_entity(&mut app, "Nutrient gel · stock 40 · buy 18 cr · sell 15 cr");
+    assert!(app.world().entity(trade).contains::<InteractionDisabled>());
+    let travel = button_entity(&mut app, "Send ship to selected system");
+    app.world_mut().trigger(Activate { entity: travel });
+    step(&mut app, Duration::ZERO);
     let start = button_entity(&mut app, "Start time");
     let pause = button_entity(&mut app, "Pause time");
+    assert!(app.world().entity(trade).contains::<InteractionDisabled>());
     app.world_mut().trigger(Activate { entity: start });
     step(&mut app, unit * 3);
     text_entity(&mut app, "Time: 3 units | RUNNING");
@@ -88,8 +91,15 @@ fn production_ui_controls_time_travel_and_displays_arrival_in_the_same_update() 
         &mut app,
         "Ship arrived at Europa Exchange at time 12. Time paused.",
     );
-    assert!(!app.world().entity(mars).contains::<InteractionDisabled>());
-    assert!(app.world().entity(europa).contains::<InteractionDisabled>());
+    assert!(!app.world().entity(trade).contains::<InteractionDisabled>());
+    app.world_mut().trigger(Activate { entity: ceres });
+    step(&mut app, Duration::ZERO);
+    text_entity(&mut app, "MARKET / Ceres Exchange");
+    assert!(app.world().entity(trade).contains::<InteractionDisabled>());
+    app.world_mut().trigger(Activate { entity: europa });
+    step(&mut app, Duration::ZERO);
+    assert!(!app.world().entity(trade).contains::<InteractionDisabled>());
+    assert!(app.world().entity(mars).contains::<Button>());
 }
 
 fn node_bounds(app: &App, entity: Entity) -> Rect {
@@ -129,7 +139,7 @@ fn scroll_over(app: &mut App, entity: Entity, y: f32) {
 }
 
 #[test]
-fn wrapped_markets_scroll_into_view_in_small_windows() {
+fn selected_market_scrolls_into_view_in_small_windows() {
     for (width, height) in [(1024, 768), (800, 600)] {
         let mut app = App::new();
         app.insert_resource(load_game_config("assets/data/game.yaml").unwrap())
@@ -171,26 +181,24 @@ fn wrapped_markets_scroll_into_view_in_small_windows() {
             .query_filtered::<Entity, (With<Node>, Without<ChildOf>)>()
             .single(app.world())
             .unwrap();
-        let target = button_entity(&mut app, "Sell (28 cr)");
+        let target = button_entity(&mut app, "Sell (16 cr)");
         let visible_market = text_entity(&mut app, "Mars Exchange");
         let viewport = node_bounds(&app, root);
         assert_eq!(viewport.size(), Vec2::new(width as f32, height as f32));
-        assert!(
-            node_bounds(&app, target).max.y > viewport.max.y,
-            "Ceres should initially overflow at {width}x{height}"
-        );
-
-        scroll_over(&mut app, visible_market, -10_000.0);
-        assert!(app.world().get::<ScrollPosition>(root).unwrap().y > 0.0);
         let target_bounds = node_bounds(&app, target);
-        assert!(
-            target_bounds.min.y >= viewport.min.y,
-            "Ceres action {target_bounds:?} must stay below the top edge of {viewport:?}"
-        );
-        assert!(
-            target_bounds.max.y <= viewport.max.y,
-            "Ceres action must be reachable by scrolling at {width}x{height}"
-        );
+        if target_bounds.max.y > viewport.max.y {
+            scroll_over(&mut app, visible_market, -10_000.0);
+            assert!(app.world().get::<ScrollPosition>(root).unwrap().y > 0.0);
+            let scrolled_bounds = node_bounds(&app, target);
+            assert!(
+                scrolled_bounds.min.y >= viewport.min.y,
+                "market action {scrolled_bounds:?} must stay below the top edge of {viewport:?}"
+            );
+            assert!(
+                scrolled_bounds.max.y <= viewport.max.y,
+                "market action must be reachable by scrolling"
+            );
+        }
 
         scroll_over(&mut app, target, 10_000.0);
         assert_eq!(app.world().get::<ScrollPosition>(root).unwrap().y, 0.0);

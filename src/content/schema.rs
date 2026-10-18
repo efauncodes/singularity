@@ -44,7 +44,15 @@ pub struct GoodConfig {
 pub struct StationConfig {
     pub id: String,
     pub name: String,
+    pub map_position: MapPosition,
     pub market: Vec<MarketEntry>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MapPosition {
+    pub x: f32,
+    pub y: f32,
 }
 
 #[derive(Clone, Debug, Deserialize)]

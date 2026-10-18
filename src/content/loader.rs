@@ -80,6 +80,18 @@ fn validate_config(config: &GameConfig, source: &str) -> Result<(), String> {
                 station.id
             ));
         }
+        if !station.map_position.x.is_finite() || !(0.0..=1.0).contains(&station.map_position.x) {
+            return Err(format!(
+                "{source}: station `{}` field `map_position.x` must be between 0 and 1",
+                station.id
+            ));
+        }
+        if !station.map_position.y.is_finite() || !(0.0..=1.0).contains(&station.map_position.y) {
+            return Err(format!(
+                "{source}: station `{}` field `map_position.y` must be between 0 and 1",
+                station.id
+            ));
+        }
 
         let mut market_good_ids = HashSet::new();
         for entry in &station.market {

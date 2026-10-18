@@ -1,0 +1,16 @@
+starting_credits: 300
+cargo_capacity: 100
+goods:
+  - id: nutrient_gel
+    name: Nutrient gel
+    weight: 1
+  - id: nutrient_gel
+    name: Duplicate nutrient gel
+    weight: 2
+stations:
+  - id: alpha
+    name: Alpha
+    market: []
+  - id: beta
+    name: Beta
+    market: []

@@ -1,0 +1,43 @@
+starting_credits: 300
+cargo_capacity: 100
+goods:
+  - id: nutrient_gel
+    name: Nutrient gel
+    weight: 1
+  - id: refined_alloy
+    name: Refined alloy
+    weight: 5
+  - id: reactor_cells
+    name: Reactor cells
+    weight: 10
+stations:
+  - id: mars_exchange
+    name: Mars Exchange
+    market:
+      - good_id: nutrient_gel
+        stock: 100
+        player_buy_price: 10
+        player_sell_price: 8
+      - good_id: refined_alloy
+        stock: 30
+        player_buy_price: 20
+        player_sell_price: 16
+      - good_id: reactor_cells
+        stock: 15
+        player_buy_price: 20
+        player_sell_price: 16
+  - id: europa_exchange
+    name: Europa Exchange
+    market:
+      - good_id: nutrient_gel
+        stock: 40
+        player_buy_price: 18
+        player_sell_price: 15
+      - good_id: refined_alloy
+        stock: 20
+        player_buy_price: 35
+        player_sell_price: 30
+      - good_id: reactor_cells
+        stock: 10
+        player_buy_price: 40
+        player_sell_price: 35

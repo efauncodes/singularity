@@ -6,7 +6,7 @@ use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::text::{EditableText, TextCursorStyle};
 use bevy::ui::InteractionDisabled;
-use bevy::ui_widgets::{Activate, Button};
+use bevy::ui_widgets::{Activate, Button, ScrollArea};
 
 use super::navigation::{NavigationUiPlugin, spawn_navigation, spawn_travel_button};
 use crate::content::GameConfig;
@@ -61,6 +61,7 @@ pub fn setup_trade_ui(
                 overflow: Overflow::scroll_y(),
                 ..default()
             },
+            ScrollArea,
             BackgroundColor(Color::srgb(0.035, 0.055, 0.09)),
         ))
         .id();

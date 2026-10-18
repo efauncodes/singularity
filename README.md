@@ -38,3 +38,4 @@ Use **Start time** and **Pause time** to control the simulation clock. Ship prog
 4. Click **Start time**, then **Pause time** partway through. Expect the clock and progress to advance and then remain fixed while paused.
 5. Click **Start time** again. Expect arrival at Europa, a notification naming Europa, and an automatic pause at time 12. Europa trade becomes available.
 6. Sell the cargo and send the ship to Ceres, then start time. Expect a second arrival and automatic pause at time 22; repeat a return journey to Mars.
+7. Resize the window to 1024x768 or 800x600. Use the mouse wheel or trackpad to scroll down to Ceres and its last trade buttons, then scroll back up to the time controls. Expect all actions to remain reachable.

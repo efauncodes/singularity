@@ -92,6 +92,6 @@ pub struct TradeResult(pub String);
 
 impl Default for TradeResult {
     fn default() -> Self {
-        Self("Enter a quantity and trade between the two exchanges.".to_string())
+        Self("Enter a quantity to trade at your docked station.".to_string())
     }
 }

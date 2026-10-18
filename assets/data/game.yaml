@@ -1,5 +1,7 @@
 starting_credits: 300
 cargo_capacity: 100
+starting_station_id: mars_exchange
+real_millis_per_unit: 500
 goods:
   - id: nutrient_gel
     name: Nutrient gel
@@ -41,3 +43,28 @@ stations:
         stock: 10
         player_buy_price: 40
         player_sell_price: 35
+  - id: ceres_exchange
+    name: Ceres Exchange
+    market:
+      - good_id: nutrient_gel
+        stock: 60
+        player_buy_price: 14
+        player_sell_price: 12
+      - good_id: refined_alloy
+        stock: 60
+        player_buy_price: 15
+        player_sell_price: 12
+      - good_id: reactor_cells
+        stock: 8
+        player_buy_price: 32
+        player_sell_price: 28
+routes:
+  - from_station_id: mars_exchange
+    to_station_id: europa_exchange
+    travel_units: 12
+  - from_station_id: mars_exchange
+    to_station_id: ceres_exchange
+    travel_units: 8
+  - from_station_id: europa_exchange
+    to_station_id: ceres_exchange
+    travel_units: 10

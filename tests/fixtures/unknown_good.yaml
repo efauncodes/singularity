@@ -1,4 +1,10 @@
 starting_credits: 300
+starting_station_id: alpha
+real_millis_per_unit: 500
+routes:
+  - from_station_id: alpha
+    to_station_id: beta
+    travel_units: 5
 cargo_capacity: 100
 goods:
   - id: nutrient_gel

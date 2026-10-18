@@ -35,9 +35,9 @@ fn validate_config(config: &GameConfig, source: &str) -> Result<(), String> {
         ));
     }
 
-    if config.stations.len() != 2 {
+    if config.stations.len() < 2 {
         return Err(format!(
-            "{source}: field `stations` must contain exactly two stations"
+            "{source}: field `stations` must contain at least two stations"
         ));
     }
 
@@ -122,5 +122,70 @@ fn validate_config(config: &GameConfig, source: &str) -> Result<(), String> {
         }
     }
 
+    validate_travel(config, source, &station_ids)
+}
+
+fn validate_travel(
+    config: &GameConfig,
+    source: &str,
+    station_ids: &HashSet<&str>,
+) -> Result<(), String> {
+    if config.real_millis_per_unit == 0 {
+        return Err(format!(
+            "{source}: field `real_millis_per_unit` must be greater than zero"
+        ));
+    }
+    if !station_ids.contains(config.starting_station_id.as_str()) {
+        return Err(format!(
+            "{source}: field `starting_station_id` references unknown station `{}`",
+            config.starting_station_id
+        ));
+    }
+
+    let mut connections = HashSet::new();
+    for route in &config.routes {
+        for (field, id) in [
+            ("from_station_id", &route.from_station_id),
+            ("to_station_id", &route.to_station_id),
+        ] {
+            if !station_ids.contains(id.as_str()) {
+                return Err(format!(
+                    "{source}: field `routes.{field}` references unknown station `{id}`"
+                ));
+            }
+        }
+        let from = route.from_station_id.as_str();
+        let to = route.to_station_id.as_str();
+        if from == to {
+            return Err(format!(
+                "{source}: route `{from}` -> `{to}` must connect different stations"
+            ));
+        }
+        if route.travel_units == 0 {
+            return Err(format!(
+                "{source}: route `{from}` -> `{to}` field `travel_units` must be greater than zero"
+            ));
+        }
+        let key = match from < to {
+            true => (from, to),
+            false => (to, from),
+        };
+        if !connections.insert(key) {
+            return Err(format!(
+                "{source}: duplicate route between `{from}` and `{to}`"
+            ));
+        }
+    }
+
+    for (index, from) in config.stations.iter().enumerate() {
+        for to in config.stations.iter().skip(index + 1) {
+            if config.travel_units(&from.id, &to.id).is_none() {
+                return Err(format!(
+                    "{source}: field `routes` is missing a direct route between `{}` and `{}`",
+                    from.id, to.id
+                ));
+            }
+        }
+    }
     Ok(())
 }

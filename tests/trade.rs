@@ -1,31 +1,22 @@
+mod support;
+
+use std::time::Duration;
+
 use bevy::prelude::*;
 use singularity::content::{GameConfig, load_game_config};
-use singularity::trade::{
-    Player, PlayerState, StationState, TradeDirection, TradePlugin, TradeRequest, TradeResult,
-};
+use singularity::ship::{ArrivalNotice, TravelRequest};
+use singularity::trade::{PlayerState, StationState, TradeDirection, TradeRequest, TradeResult};
+use support::{setup_game, step, travel_to};
 
 fn setup_app(credits: u32) -> (App, Entity, Entity, Entity, GameConfig) {
-    let config = load_game_config("assets/data/game.yaml").expect("production YAML should load");
-    let mut app = App::new();
-    app.insert_resource(config.clone())
-        .add_plugins(MinimalPlugins)
-        .add_plugins(TradePlugin);
-    let player = app
-        .world_mut()
-        .spawn((Player, PlayerState::new(credits, config.cargo_capacity)))
-        .id();
-    let alpha_config = &config.stations[0];
-    let beta_config = &config.stations[1];
-    let alpha = app
-        .world_mut()
-        .spawn(StationState::from_config(alpha_config))
-        .id();
-    let beta = app
-        .world_mut()
-        .spawn(StationState::from_config(beta_config))
-        .id();
-    app.update();
-    (app, player, alpha, beta, config)
+    let game = setup_game(credits);
+    (
+        game.app,
+        game.player,
+        game.stations[0],
+        game.stations[1],
+        game.config,
+    )
 }
 
 fn send_trade(
@@ -68,6 +59,7 @@ fn successful_sale_updates_wallet_cargo_and_station_stock() {
     let (mut app, player, alpha, beta, config) = setup_app(300);
     send_trade(&mut app, alpha, "reactor_cells", 10, TradeDirection::Buy);
 
+    travel_to(&mut app, beta);
     send_trade(&mut app, beta, "reactor_cells", 10, TradeDirection::Sell);
 
     let state = app.world().get::<PlayerState>(player).unwrap();
@@ -85,6 +77,7 @@ fn successful_sale_updates_wallet_cargo_and_station_stock() {
 #[test]
 fn insufficient_credits_leave_transaction_state_unchanged() {
     let (mut app, player, _, beta, _) = setup_app(300);
+    travel_to(&mut app, beta);
     let before_player = app.world().get::<PlayerState>(player).unwrap().clone();
     let before_station = app.world().get::<StationState>(beta).unwrap().clone();
 
@@ -129,6 +122,7 @@ fn insufficient_station_stock_leaves_transaction_state_unchanged() {
 #[test]
 fn insufficient_player_cargo_leaves_transaction_state_unchanged() {
     let (mut app, player, _, beta, _) = setup_app(300);
+    travel_to(&mut app, beta);
     let before_player = app.world().get::<PlayerState>(player).unwrap().clone();
     let before_station = app.world().get::<StationState>(beta).unwrap().clone();
 
@@ -146,6 +140,61 @@ fn insufficient_player_cargo_leaves_transaction_state_unchanged() {
         app.world().resource::<TradeResult>().0,
         "You do not have enough of that good to sell."
     );
+}
+
+#[test]
+fn remote_and_in_transit_trades_are_rejected_without_changing_inventory() {
+    let (mut app, player, alpha, beta, _) = setup_app(300);
+    let before_player = app.world().get::<PlayerState>(player).unwrap().clone();
+    let before_alpha = app
+        .world()
+        .get::<StationState>(alpha)
+        .unwrap()
+        .stock
+        .clone();
+    let before_beta = app.world().get::<StationState>(beta).unwrap().stock.clone();
+    send_trade(&mut app, beta, "nutrient_gel", 1, TradeDirection::Buy);
+    assert_eq!(
+        app.world().resource::<TradeResult>().0,
+        "Dock at that station before trading."
+    );
+    app.world_mut()
+        .resource_mut::<Messages<TravelRequest>>()
+        .write(TravelRequest { destination: beta });
+    step(&mut app, Duration::ZERO);
+    for station in [alpha, beta] {
+        send_trade(&mut app, station, "nutrient_gel", 1, TradeDirection::Buy);
+        send_trade(&mut app, station, "nutrient_gel", 1, TradeDirection::Sell);
+        assert_eq!(
+            app.world().resource::<TradeResult>().0,
+            "Dock at that station before trading."
+        );
+    }
+    assert_eq!(
+        app.world().get::<PlayerState>(player).unwrap(),
+        &before_player
+    );
+    assert_eq!(
+        app.world().get::<StationState>(alpha).unwrap().stock,
+        before_alpha
+    );
+    assert_eq!(
+        app.world().get::<StationState>(beta).unwrap().stock,
+        before_beta
+    );
+}
+
+#[test]
+fn arrival_notification_survives_trade_feedback() {
+    let (mut app, _, _, beta, _) = setup_app(300);
+    travel_to(&mut app, beta);
+    let notice = app.world().resource::<ArrivalNotice>().0.clone();
+    send_trade(&mut app, beta, "reactor_cells", 10, TradeDirection::Buy);
+    assert_eq!(
+        app.world().resource::<TradeResult>().0,
+        "Not enough credits."
+    );
+    assert_eq!(app.world().resource::<ArrivalNotice>().0, notice);
 }
 
 #[test]

@@ -192,10 +192,10 @@ fn select_system(
 
 fn refresh_selected_station(
     selected: Res<SelectedSystem>,
-    mut stations: Query<(Entity, &mut BackgroundColor), With<MapStation>>,
+    mut stations: Query<(&SelectSystem, &mut BackgroundColor), With<MapStation>>,
 ) {
-    for (entity, mut color) in &mut stations {
-        color.0 = match entity == selected.0 {
+    for (system, mut color) in &mut stations {
+        color.0 = match system.0 == selected.0 {
             true => Color::srgb(0.34, 0.55, 0.28),
             false => Color::srgb(0.12, 0.24, 0.31),
         };
